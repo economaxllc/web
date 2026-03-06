@@ -1,3 +1,92 @@
+<?php
+declare(strict_types=1);
+
+// ── Quote Form Handler ─────────────────────────────────────────────────────
+$formSuccess = false;
+$formError   = false;
+$formMessage = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quote_submit'])) {
+
+    // Sanitise & validate inputs
+    $firstName  = htmlspecialchars(trim($_POST['first_name']    ?? ''), ENT_QUOTES, 'UTF-8');
+    $lastName   = htmlspecialchars(trim($_POST['last_name']     ?? ''), ENT_QUOTES, 'UTF-8');
+    $phone      = htmlspecialchars(trim($_POST['phone']         ?? ''), ENT_QUOTES, 'UTF-8');
+    $email      = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL) ?? '';
+    $company    = htmlspecialchars(trim($_POST['company']       ?? ''), ENT_QUOTES, 'UTF-8');
+    $material   = htmlspecialchars(trim($_POST['material']      ?? ''), ENT_QUOTES, 'UTF-8');
+    $loads      = htmlspecialchars(trim($_POST['loads']         ?? ''), ENT_QUOTES, 'UTF-8');
+    $desired    = htmlspecialchars(trim($_POST['desired_date']  ?? ''), ENT_QUOTES, 'UTF-8');
+    $notes      = htmlspecialchars(trim($_POST['notes']         ?? ''), ENT_QUOTES, 'UTF-8');
+
+    // Basic required-field check
+    if ($firstName === '' || $lastName === '' || $phone === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $formError   = true;
+        $formMessage = 'Please fill in all required fields with a valid email address.';
+    } else {
+        $to      = 'quotes@kelvinwilliams.net';
+        $subject = "Quote Request – {$firstName} {$lastName}" . ($company !== '' ? " ({$company})" : '');
+
+        $body = <<<TEXT
+        New quote request from the EconoMax website.
+        ───────────────────────────────────────────
+        Name    : {$firstName} {$lastName}
+        Phone   : {$phone}
+        Email   : {$email}
+        Company : {$company}
+        ───────────────────────────────────────────
+        Material       : {$material}
+        Estimated Loads: {$loads}
+        Desired Date   : {$desired}
+
+        Project Notes / Details:
+        {$notes}
+        ───────────────────────────────────────────
+        Sent from econoMaxLLC.com contact form
+        TEXT;
+
+        // Build headers array – PHP 8.3 supports array headers directly with mail()
+        $headers = implode("\r\n", [
+            'From: EconoMax Website <noreply@kelvinwilliams.net>',
+            "Reply-To: {$firstName} {$lastName} <{$email}>",
+            'Content-Type: text/plain; charset=UTF-8',
+            'X-Mailer: PHP/' . PHP_VERSION,
+            'X-Form-Source: EconoMax Quote Form',
+        ]);
+
+        $formSuccess = mail($to, $subject, $body, $headers);
+        $formError   = !$formSuccess;
+        $formMessage = $formSuccess
+            ? 'Your quote request has been sent! We\'ll be in touch within the hour.'
+            : 'Sorry, there was a problem sending your message. Please call us directly.';
+    }
+}
+
+// ── Fleet Image Scanner ───────────────────────────────────────────────────
+$fleetDir    = __DIR__ . '/images/fleet/';
+$allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+$fleetImages = [];
+
+if (is_dir($fleetDir)) {
+    $iterator = new FilesystemIterator($fleetDir, FilesystemIterator::SKIP_DOTS);
+    foreach ($iterator as $file) {
+        if ($file->isFile()) {
+            $ext = strtolower($file->getExtension());
+            if (in_array($ext, $allowedExts, strict: true)) {
+                $fleetImages[] = $file->getFilename();
+            }
+        }
+    }
+    natsort($fleetImages);            // natural sort: fleet2 before fleet10
+    $fleetImages = array_values($fleetImages);
+}
+
+// JSON-encode the image list for inline JS (safe for embedding)
+$fleetImagesJson = json_encode(
+    array_map(fn(string $f): string => '/images/fleet/' . rawurlencode($f), $fleetImages),
+    JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR
+);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1080,20 +1169,12 @@
 
   <script>
     (function() {
-      // ── Configuration ──────────────────────────────────────────
-      // The carousel scans /images/fleet/ for files named with common
-      // patterns. Add or remove filenames here to match your actual files.
-      // Supported extensions: .jpg, .jpeg, .png (case-insensitive).
-      // The script will silently skip any image that fails to load.
-      const FLEET_IMAGE_DIR = '/web/images/fleet/';
-
-      // Probe a list of candidate filenames; any that load successfully
-      // will be added to the carousel automatically.
-      const CANDIDATE_FILENAMES = [
-        'fleet1.jpg','fleet2.jpg','fleet3.jpg','fleet4.jpg','fleet5.jpg',
-        'fleet6.jpg','fleet7.jpg','fleet8.jpg','fleet9.jpg','fleet10.jpg',
-      ];
-      // ── End Configuration ──────────────────────────────────────
+      // ── Fleet images supplied server-side by PHP directory scan ──────────
+      // PHP scanned /images/fleet/ for all image files at page render time.
+      // No client-side probing needed – every URL in this array is confirmed
+      // to exist on the server.
+      const FLEET_URLS = <?= $fleetImagesJson ?>;
+      // ── End Configuration ────────────────────────────────────────────────
 
       const viewport   = document.getElementById('carouselViewport');
       const dotsWrap   = document.getElementById('carouselDots');
@@ -1178,37 +1259,8 @@
         if (slides[0]) labelEl.textContent = slides[0].dataset.filename;
       }
 
-      // Probe all candidates; collect ones that load
-      function probeImages(candidates, dir) {
-        const results = [];
-        let pending = candidates.length;
-        if (pending === 0) { initCarousel([]); return; }
-
-        // Insert placeholder while probing
-        const ph = buildPlaceholder();
-        viewport.appendChild(ph);
-
-        candidates.forEach(function(filename) {
-          const img = new Image();
-          const url = dir + filename;
-          img.onload = function() {
-            results.push({ url, filename });
-            if (--pending === 0) finish();
-          };
-          img.onerror = function() {
-            if (--pending === 0) finish();
-          };
-          img.src = url;
-        });
-
-        function finish() {
-          // Sort by filename for consistent ordering
-          results.sort((a, b) => a.filename.localeCompare(b.filename));
-          initCarousel(results.map(r => r.url));
-        }
-      }
-
-      probeImages(CANDIDATE_FILENAMES, FLEET_IMAGE_DIR);
+      // Initialise directly from server-provided URL list — no probing needed
+      initCarousel(FLEET_URLS);
 
       // Keyboard navigation
       document.addEventListener('keydown', function(e) {
@@ -1244,7 +1296,7 @@
           <div class="contact-detail-icon">✉️</div>
           <div class="contact-detail-text">
             <strong>Email</strong>
-            <span>dispatch@economax.llc</span>
+            <span><a href="mailto:quotes@kelvinwilliams.net" style="color:inherit;text-decoration:none;">quotes@kelvinwilliams.net</a></span>
           </div>
         </div>
         <div class="contact-detail">
@@ -1264,59 +1316,98 @@
       </div>
 
       <div class="contact-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label>First Name</label>
-            <input type="text" placeholder="John" />
+        <?php if ($formSuccess): ?>
+          <div style="background:#1a3a1a;border-left:4px solid #4caf50;padding:20px 24px;margin-bottom:24px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;color:#b6f5b6;letter-spacing:0.04em;">
+            ✅ <?= htmlspecialchars($formMessage, ENT_QUOTES, 'UTF-8') ?>
           </div>
-          <div class="form-group">
-            <label>Last Name</label>
-            <input type="text" placeholder="Smith" />
+        <?php elseif ($formError): ?>
+          <div style="background:#3a1a1a;border-left:4px solid #f44336;padding:20px 24px;margin-bottom:24px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;color:#ffb3b3;letter-spacing:0.04em;">
+            ⚠️ <?= htmlspecialchars($formMessage, ENT_QUOTES, 'UTF-8') ?>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Phone</label>
-            <input type="tel" placeholder="(555) 000-0000" />
+        <?php endif; ?>
+
+        <form method="post" action="#contact" novalidate>
+          <input type="hidden" name="quote_submit" value="1" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first_name">First Name <span style="color:var(--yellow)">*</span></label>
+              <input type="text" id="first_name" name="first_name" placeholder="John" required
+                     value="<?= htmlspecialchars($_POST['first_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
+            </div>
+            <div class="form-group">
+              <label for="last_name">Last Name <span style="color:var(--yellow)">*</span></label>
+              <input type="text" id="last_name" name="last_name" placeholder="Smith" required
+                     value="<?= htmlspecialchars($_POST['last_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
+            </div>
           </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" placeholder="you@company.com" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Phone <span style="color:var(--yellow)">*</span></label>
+              <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" required
+                     value="<?= htmlspecialchars($_POST['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
+            </div>
+            <div class="form-group">
+              <label for="email">Email <span style="color:var(--yellow)">*</span></label>
+              <input type="email" id="email" name="email" placeholder="you@company.com" required
+                     value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Company / Project Name</label>
-          <input type="text" placeholder="ABC Construction" />
-        </div>
-        <div class="form-group">
-          <label>Material Type</label>
-          <select>
-            <option value="">— Select material —</option>
-            <option>Aggregate / Gravel</option>
-            <option>Crushed Stone</option>
-            <option>Topsoil / Fill</option>
-            <option>Sand</option>
-            <option>Asphalt / Millings</option>
-            <option>Demolition Debris</option>
-            <option>Coal / Fuel Material</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="form-row">
+
           <div class="form-group">
-            <label>Estimated Loads</label>
-            <input type="text" placeholder="e.g. 10 loads" />
+            <label for="company">Company / Project Name</label>
+            <input type="text" id="company" name="company" placeholder="ABC Construction"
+                   value="<?= htmlspecialchars($_POST['company'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
           </div>
+
           <div class="form-group">
-            <label>Desired Date</label>
-            <input type="date" />
+            <label for="material">Material Type</label>
+            <?php
+            $materials = [
+                ''                    => '— Select material —',
+                'Aggregate / Gravel'  => 'Aggregate / Gravel',
+                'Crushed Stone'       => 'Crushed Stone',
+                'Topsoil / Fill'      => 'Topsoil / Fill',
+                'Sand'                => 'Sand',
+                'Asphalt / Millings'  => 'Asphalt / Millings',
+                'Demolition Debris'   => 'Demolition Debris',
+                'Coal / Fuel Material'=> 'Coal / Fuel Material',
+                'Other'               => 'Other',
+            ];
+            $selectedMaterial = $_POST['material'] ?? '';
+            ?>
+            <select id="material" name="material">
+              <?php foreach ($materials as $val => $label): ?>
+                <option value="<?= htmlspecialchars($val, ENT_QUOTES, 'UTF-8') ?>"
+                  <?= $selectedMaterial === $val ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Project Details / Notes</label>
-          <textarea placeholder="Delivery address, access notes, special requirements..."></textarea>
-        </div>
-        <button class="form-submit">Send My Quote Request →</button>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="loads">Estimated Loads</label>
+              <input type="text" id="loads" name="loads" placeholder="e.g. 10 loads"
+                     value="<?= htmlspecialchars($_POST['loads'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
+            </div>
+            <div class="form-group">
+              <label for="desired_date">Desired Date</label>
+              <input type="date" id="desired_date" name="desired_date"
+                     value="<?= htmlspecialchars($_POST['desired_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Project Details / Notes</label>
+            <textarea id="notes" name="notes"
+                      placeholder="Delivery address, access notes, special requirements..."><?= htmlspecialchars($_POST['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+          </div>
+
+          <button type="submit" class="form-submit">Send My Quote Request →</button>
+        </form>
       </div>
     </div>
   </section>
@@ -1329,4 +1420,9 @@
       <li><a href="#about">About</a></li>
       <li><a href="#fleet">Fleet</a></li>
       <li><a href="#contact">Contact</a></li>
-      <li><a href="#">Privacy Policy</a>
+    </ul>
+    <p class="footer-copy">&copy; <?= date('Y') ?> EconoMax, LLC &middot; Licensed &amp; Insured &middot; Alpharetta, GA</p>
+  </footer>
+
+</body>
+</html>
