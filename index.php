@@ -1006,7 +1006,7 @@ $fleetImagesJson = json_encode(
       <div class="stat-label">Trucks in Fleet</div>
     </div>
     <div class="stat">
-      <div class="stat-num">25K+</div>
+      <div class="stat-num">3.5K+</div>
       <div class="stat-label">Loads Delivered</div>
     </div>
     <div class="stat">
