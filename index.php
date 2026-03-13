@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quote_submit'])) {
 
         // Build headers array – PHP 8.3 supports array headers directly with mail()
         $headers = implode("\r\n", [
-            'From: EconoMax Website <noreply@kelvinwilliams.net>',
+            'From: EconoMaxTrucking.com Website <noreply@economaxtrucking.com>',
             "Reply-To: {$firstName} {$lastName} <{$email}>",
             'Content-Type: text/plain; charset=UTF-8',
             'X-Mailer: PHP/' . PHP_VERSION,
