@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quote_submit'])) {
         $formError   = true;
         $formMessage = 'Please fill in all required fields with a valid email address.';
     } else {
-        $to      = 'kelvingetsstuffdone@gmail.com';
+        $to      = 'quotes@economaxtrucking.com';
         $subject = "Quote Request – {$firstName} {$lastName}" . ($company !== '' ? " ({$company})" : '');
 
         $body = <<<TEXT
