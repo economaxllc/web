@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quote_submit'])) {
         Project Notes / Details:
         {$notes}
         ───────────────────────────────────────────
-        Sent from econoMaxLLC.com contact form
+        Sent from EconoMaxTrucking.com quote form
         TEXT;
 
         // Build headers array – PHP 8.3 supports array headers directly with mail()
