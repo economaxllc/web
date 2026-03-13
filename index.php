@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quote_submit'])) {
         $formError   = true;
         $formMessage = 'Please fill in all required fields with a valid email address.';
     } else {
-        $to      = 'quotes@kelvinwilliams.net';
+        $to      = 'kelvingetsstuffdone@gmail.com';
         $subject = "Quote Request – {$firstName} {$lastName}" . ($company !== '' ? " ({$company})" : '');
 
         $body = <<<TEXT
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quote_submit'])) {
         $formSuccess = mail($to, $subject, $body, $headers);
         $formError   = !$formSuccess;
         $formMessage = $formSuccess
-            ? 'Your quote request has been sent! We\'ll be in touch within the hour.'
+            ? 'Your quote request has been sent! We\'ll be in touch soon.'
             : 'Sorry, there was a problem sending your message. Please call us directly.';
     }
 }
@@ -1296,7 +1296,7 @@ $fleetImagesJson = json_encode(
           <div class="contact-detail-icon">✉️</div>
           <div class="contact-detail-text">
             <strong>Email</strong>
-            <span><a href="mailto:quotes@kelvinwilliams.net" style="color:inherit;text-decoration:none;">quotes@kelvinwilliams.net</a></span>
+            <span><a href="mailto:dispatch@economaxtrucking.com" style="color:inherit;text-decoration:none;">dispatch@economaxtrucking.com</a></span>
           </div>
         </div>
         <div class="contact-detail">
