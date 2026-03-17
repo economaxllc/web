@@ -984,7 +984,7 @@ $fleetImagesJson = json_encode(
         <!-- Company text on bed -->
         <text x="450" y="225" font-family="'Bebas Neue',sans-serif" font-size="38" fill="#F5C200" text-anchor="middle" letter-spacing="4" opacity="0.85">ECONOMAX, LLC</text>
         <!-- Phone number -->
-        <text x="450" y="260" font-family="'Barlow Condensed',sans-serif" font-size="18" fill="rgba(255,255,255,0.5)" text-anchor="middle" letter-spacing="2">(678) 793-8807</text>
+        <text x="450" y="260" font-family="'Barlow Condensed',sans-serif" font-size="18" fill="rgba(255,255,255,0.5)" text-anchor="middle" letter-spacing="2">(678) 793-8807 or (678) 793-0711</text>
       </svg>
     </div>
 
@@ -1103,7 +1103,7 @@ $fleetImagesJson = json_encode(
     <div class="callout-box">
       <h3>Ready to Move<br>Material Today?</h3>
       <p>Same-day and next-morning dispatch available for most load types in our service area. Call now and talk to a real dispatcher.</p>
-      <a href="tel:6787938807" class="btn-dark">📞 Call (678) 793-8807</a>
+      <a href="tel:6787938807" class="btn-dark">📞 Call (678) 793-8807</a> or <a href="tel:6787930711" class="btn-dark">📞 Call (678) 793-0711</a>
     </div>
   </section>
 
@@ -1289,7 +1289,7 @@ $fleetImagesJson = json_encode(
           <div class="contact-detail-icon">📞</div>
           <div class="contact-detail-text">
             <strong>Phone / Dispatch</strong>
-            <span>(678) 793-8807</span>
+            <span>(678) 793-8807 or (678) 793-0711</span>
           </div>
         </div>
         <div class="contact-detail">
